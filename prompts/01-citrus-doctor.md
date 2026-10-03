@@ -1,0 +1,11 @@
+Fine-tune a small vision-language model to diagnose citrus plant problems from photos and recommend treatments.
+
+**Dataset:** `ysharma/citrus-disease-vlm-instruct` (private, on my account). It has `train` (3,017) and `test` (335) splits, already in TRL multimodal SFT format: an `images` column with one image and a `messages` column with user/assistant turns whose content is a list of `{"type": "image"}` and `{"type": "text", "text": ...}` items. There are 21 classes (fungal and bacterial diseases, insect and mite pests, nutrient deficiencies, healthy) in the `label` column, and each assistant answer names the problem, its cause, symptoms, and both biological/organic and chemical management. Read the dataset card first.
+
+**Model:** start with `Qwen/Qwen3.5-2B` (or `HuggingFaceTB/SmolVLM2-2.2B-Instruct` if Qwen3.5 gives trouble with the processor). Use TRL `SFTTrainer` with LoRA rank 16, alpha 32 on all linear layers of the language model, and freeze the vision encoder. bf16, 2 epochs, learning rate 1e-4, effective batch size 16, max sequence length 2048, image longest side 768. Log to Trackio.
+
+**Evaluation:** on the `test` split, for each example generate an answer to the first user turn and measure (a) label accuracy by checking whether the class name from the knowledge base (`scripts/knowledge_base.py` in the dataset repo, field `name`) appears in the generated first assistant turn, and (b) a per-category breakdown (disease_fungal, disease_bacterial, pest, nutrient_deficiency, healthy) using the `category` column. Also report the base model's zero-shot score on the same metric before training so we can see the gain. Show a confusion matrix for the 21 labels.
+
+**Deliverables:** push the LoRA adapter and a merged model to `ysharma/citrus-disease-vlm` with a model card that includes the eval table, the training config, and the dataset attribution (CC BY 4.0 sources listed in the dataset card). Then deploy a Gradio Space `ysharma/citrus-doctor` where a user uploads a photo and asks a question, with 3 example images from the test split and a visible disclaimer that advice must be confirmed with local extension services and pesticide labels.
+
+**Budget:** first run a 50-step smoke test on a cheap GPU to confirm the pipeline, then the full run on one A100 or L40S. Cap total spend at 10 USD and ask me before exceeding it.
